@@ -1,6 +1,17 @@
 require "luajerasure"
 
-local res = {encode(7,7,8)} -- should also take data to encode
+function readAll(file)
+    local f = io.open(file, "rb")
+    local content = f:read("*all")
+    --local size = f:seek("end",0) -- in bytes
+    f:close()
+    return content
+end
+
+local content = readAll("127bytes")
+--print(#content)
+
+local res = {encode(7,7,8,#content, content)}
 
 --[[for k,v in pairs(res) do
   --print(k)
@@ -14,6 +25,7 @@ local res = {encode(7,7,8)} -- should also take data to encode
   print("")
 end]]--
 
+local data_device_size
 local res_incomplete = {}
 for k,v in pairs(res) do
         for i,j in pairs(v) do
@@ -21,12 +33,13 @@ for k,v in pairs(res) do
                 if j % 2 == 0 then
                     --print("keep line "..j)
                     res_incomplete[#res_incomplete + 1] = v
+                    data_device_size = #v - 1
                 end
             end
         end
 end
 
---[[for k,v in pairs(res_incomplete) do
+for k,v in pairs(res_incomplete) do
   --print(k)
   for i,j in pairs(v) do
     if i == 1 then
@@ -36,10 +49,10 @@ end
     end
   end
   print("")
-end]]--
+end
 
 --decode(7,7,8,res)
-decode(7,7,8,res_incomplete)
+decode(7,7,8,data_device_size, res_incomplete)
 
 --[[num = 5
 t1 = {1, 2, 3}
