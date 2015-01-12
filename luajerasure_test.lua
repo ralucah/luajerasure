@@ -11,48 +11,37 @@ end
 local content = readAll("127bytes")
 --print(#content)
 
-local res = {encode(7,7,8,#content, content)}
+local k = 7
+local m = 7
+local w = 8 --fixed!
+local res = {encode(k,m,w,#content, content)} 
 
---[[for k,v in pairs(res) do
-  --print(k)
-  for i,j in pairs(v) do
-    if i == 1 then
-        io.write(j.." ")
-    else
-        io.write(string.format("%02x ", j))
-    end
-  end
-  print("")
-end]]--
+--print(#tostring(k+m))
+print(res)
 
 local data_device_size
-local res_incomplete = {}
-for k,v in pairs(res) do
-        for i,j in pairs(v) do
-            if i == 1 then
-                if j % 2 == 0 then
-                    --print("keep line "..j)
-                    res_incomplete[#res_incomplete + 1] = v
-                    data_device_size = #v - 1
-                end
-            end
-        end
+for key,val in pairs(res) do
+    io.write(key..": "..#val.." ")
+    io.write("\n")
+    data_device_size = #val - 5
 end
 
-for k,v in pairs(res_incomplete) do
-  --print(k)
-  for i,j in pairs(v) do
-    if i == 1 then
-        io.write(j.." ")
-    else
-        io.write(string.format("%02x ", j))
+
+
+local res_incomplete = {}
+for key,val in pairs(res) do
+    local deviceIndex = tonumber(val:sub(1,5))
+    --io.write(key.." "..deviceIndex.."\n")
+    if deviceIndex % 2 == 0 then
+        --io.write("keep line "..deviceIndex.." \n")
+        res_incomplete[#res_incomplete + 1] = val
     end
-  end
-  print("")
 end
+--print(data_device_size)
 
 --decode(7,7,8,res)
-decode(7,7,8,data_device_size, res_incomplete)
+--decode(7,7,8,data_device_size, res_incomplete)--]]
+decode(7, 7, 8, data_device_size, res_incomplete)
 
 --[[num = 5
 t1 = {1, 2, 3}
