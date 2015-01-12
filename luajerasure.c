@@ -13,16 +13,6 @@
 
 #define talloc(type, num) (type *) malloc(sizeof(type)*(num))
 
-/*
-TODO
-- generate random seed using /dev/random
-- modify the way functions are registered (luaopen_luajerasure) to allow in Lua
-  local jerasure = require "luajerasure"
-  jerasure.encode()
-- make encode return encoded data
-- make encode work on some data from lua, not on something randomly generated here
-*/
-
 usage(char *s)
 {
     fprintf(stderr, "Lua binding for a simple Reed-Solomon coding example in GF(2^w).\n");
