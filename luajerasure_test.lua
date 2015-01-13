@@ -9,12 +9,13 @@ function readAll(file)
 end
 
 local content = readAll("127bytes")
---print(#content)
+-- in lua, it is safe to get length like this even if the file might contain \0
+print(content)
 
 local k = 7
 local m = 7
-local w = 8 --fixed!
-local res = {encode(k,m,w,#content, content)} 
+local w = 8
+local res = {encode(k,m,w, #content, content)} 
 
 --print(#tostring(k+m))
 print(res)
@@ -23,9 +24,8 @@ local data_device_size
 for key,val in pairs(res) do
     io.write(key..": "..#val.." ")
     io.write("\n")
-    data_device_size = #val - 5
+    data_device_size = (#val - 5) / (w/8)
 end
-
 
 
 local res_incomplete = {}
@@ -37,11 +37,9 @@ for key,val in pairs(res) do
         res_incomplete[#res_incomplete + 1] = val
     end
 end
---print(data_device_size)
+print(data_device_size)
 
---decode(7,7,8,res)
---decode(7,7,8,data_device_size, res_incomplete)--]]
-decode(7, 7, 8, data_device_size, res_incomplete)
+decode(k, m, w, data_device_size, res_incomplete)
 
 --[[num = 5
 t1 = {1, 2, 3}
