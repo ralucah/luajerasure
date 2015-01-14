@@ -1,4 +1,5 @@
-require "luajerasure"
+luajerasure = require "luajerasure"
+print(luajerasure)
 
 function readAll(file)
     local f = io.open(file, "rb")
@@ -14,7 +15,7 @@ local content = readAll("127bytes")
 local k = 7
 local m = 7
 local w = 8
-local res = {encode(k,m,w, #content, content)} 
+local res = {luajerasure.encode(k,m,w, #content, content)} 
 
 --print(#tostring(k+m))
 --print(res)
@@ -29,7 +30,7 @@ for key,val in pairs(res) do
 end
 print(data_device_size)
 
-resDec = decode(k, m, w, data_device_size, res_incomplete)
+resDec = luajerasure.decode(k, m, w, data_device_size, res_incomplete)
 
 for i=1,#content do
     local c = content:sub(i,i)
