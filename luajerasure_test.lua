@@ -27,13 +27,9 @@ for key,val in pairs(res) do
     end
     data_device_size = (#val - 4) / (w/8)
 end
---print(data_device_size)
+print(data_device_size)
 
 resDec = decode(k, m, w, data_device_size, res_incomplete)
-
-print(content)
-print("\n")
-print(resDec)
 
 for i=1,#content do
     local c = content:sub(i,i)

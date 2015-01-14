@@ -73,6 +73,33 @@ static void check_args(int k, int m, int w) {
     }
 }
 
+char *buffers[100];
+int nextBufferIndex = 0;
+
+char *allocateAligned(int size, char* alignmentTarget) {
+    char* buffer = (char *)malloc(sizeof(char) * size + 16);
+    buffers[nextBufferIndex] = buffer;
+    nextBufferIndex++;
+
+    int difference = buffer - alignmentTarget;
+    if (difference % 16 != 0) {
+        printf("target is %p, allocated %d bytes at %p, returning %p with offset %d\n",alignmentTarget,size, buffer, buffer + (16-difference%16)%16, (16-difference%16)%16);
+        return buffer + (16 - difference % 16)%16;
+    }
+    else {
+        return buffer;
+    }
+}
+
+void freeAlignedBuffers() {
+    int i;
+    for (i = 0; i < nextBufferIndex; i++) {
+        printf("%d free \n", i);
+        free(buffers[i]);
+    }
+    nextBufferIndex = 0;
+}
+
 /* expected args: k, m, w, file size, file content */
 static int encode (lua_State *L) {
     int k = luaL_checknumber(L, 1);
@@ -88,33 +115,42 @@ static int encode (lua_State *L) {
     char **data, **coding;
     int device_size, device_size_in_bytes;
 
-    device_size = 1 + (size - 1) / (k * w/8); // round up
+    device_size = 1 + (size - 1) / (k * w/8); //commonDivisor; // round up
+    int alignment = 16/(w/8);
+    device_size = alignment * (device_size/alignment) + alignment;
     device_size_in_bytes = device_size * w/8;
     printf("device_size = %d (of %d bits each)\n", device_size, w);
 
+    char** buffers = (char**)malloc(sizeof(char*) * (k + m));
+
     //printf("allocating %d bytes for each data[i]\n", ((int)sizeof(char) * device_size_in_bytes));
     data = (char**)malloc(sizeof(char*) * k);
-    for (i = 0; i < k; i++) {
-        data[i] = (char *)malloc(sizeof(char) * device_size_in_bytes);
-    }
     coding = (char **)malloc(sizeof(char*)*m);
+
     for (i = 0; i < m; i++) {
-        coding[i] = (char *)malloc(sizeof(char) * device_size_in_bytes);
+        coding[i] = allocateAligned(device_size_in_bytes, content);
     }
 
     /* fill in data devices; add padding to the last one, if necessary */
     for ( i = 0; i < k; i++ ) {
         int offsetInContent = i * device_size_in_bytes;
         printf("data[%d]: ", i);
-        if (i < (k - 1)) {
-            memcpy(data[i], content + offsetInContent, device_size_in_bytes);
-            //data[i] = content + offsetInContent;
+        if (i < (size / device_size_in_bytes)) {
+            //memcpy(data[i], content + offsetInContent, device_size_in_bytes);
+            data[i] = content + offsetInContent;
             //printf("memcpy %d - %d \n", offsetInContent, offsetInContent + device_size_in_bytes );
         } else {
             int lastContentSize = (size - offsetInContent);
-            int paddingSize = device_size_in_bytes - lastContentSize;
-            memcpy(data[i], content + offsetInContent, lastContentSize);
-            memset(data[i] + lastContentSize, '0', paddingSize);
+            int paddingSize;
+
+            data[i] = allocateAligned(device_size_in_bytes,content);
+            if (lastContentSize > 0) {
+                paddingSize = device_size_in_bytes - lastContentSize;
+                memcpy(data[i], content + offsetInContent, lastContentSize);
+                memset(data[i] + lastContentSize, '0', paddingSize);
+            } else {
+                memset(data[i], '0', device_size_in_bytes);
+            }
             //printf("mancpy %d - %d + padding %d\n", offsetInContent, offsetInContent + lastContentSize, paddingSize);
         }
     }
@@ -146,6 +182,7 @@ static int encode (lua_State *L) {
         free(codingDeviceArr);
     }
 
+    freeAlignedBuffers();
     free(data);
     free(coding);
 
@@ -174,16 +211,6 @@ static int decode (lua_State *L) {
     char **data, **coding;
     int device_size_in_bytes = device_size * w/8;
 
-    data = (char**)malloc(sizeof(char*)*k);
-    for (i = 0; i < k; i++) {
-        data[i] = (char *)malloc(sizeof(char) * device_size_in_bytes);
-    }
-
-    coding = (char **)malloc(sizeof(char*)*m);
-    for (i = 0; i < m; i++) {
-        coding[i] = (char *)malloc(sizeof(char)* device_size_in_bytes);
-    }
-
     erasures = (int *)malloc(sizeof(int) * (k+m));
     existing = (int *)malloc(sizeof(int) * (k+m));
     for (i = 0; i < (k+m); i++) {
@@ -194,43 +221,64 @@ static int decode (lua_State *L) {
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_pushnil(L);
 
+    /*data = (char**)malloc(sizeof(char*)*k);
+    for (i = 0; i < k; i++) {
+        data[i] = (char *)malloc(sizeof(char) * device_size_in_bytes);
+    }
+
+    coding = (char **)malloc(sizeof(char*)*m);
+    for (i = 0; i < m; i++) {
+        coding[i] = (char *)malloc(sizeof(char)* device_size_in_bytes);
+    }*/
+
+    data = (char**)malloc(sizeof(char*) * k);
+    coding = (char **)malloc(sizeof(char*) * m);
+
+    char * alignmentTarget = NULL;
     while(lua_next(L, -2) != 0)
     {
         if(lua_isstring(L, -1)) {
             char* rawDataDevice = luaL_checkstring(L, -1);
 
-            // first 5 positions represent the index of the data device
-            //char * indexArr = (char *) malloc(sizeof(char) * sizeof(int));
-            //memcpy(indexArr, rawDataDevice, sizeof(int));
+            // first sizeof(int) positions represent the index of the data device
             int index;// = atoi(indexArr);
             memcpy(&index, rawDataDevice, sizeof(int));
 
             existing[index] = 1;
 
-            printf("%d ", index);
+            if (alignmentTarget == NULL) {
+                alignmentTarget = rawDataDevice + sizeof(int);
+            }
+
+            //printf("%d ", index);
             if (index < k) {
-                printf(" is data\n");
-                memcpy(data[index], rawDataDevice + sizeof(int), device_size_in_bytes);
+                //printf(" is data\n");
+                //memcpy(data[index], rawDataDevice + sizeof(int), device_size_in_bytes);
+                data[index] = rawDataDevice + sizeof(int);
             } else {
-                printf(" is coding\n");
-                memcpy(coding[index - k], rawDataDevice + sizeof(int), device_size_in_bytes);
+                //printf(" is coding\n");
+                //memcpy(coding[index - k], rawDataDevice + sizeof(int), device_size_in_bytes);
+                coding[index - k] = rawDataDevice + sizeof(int);
             }
         }
         lua_pop(L, 1);
     }
 
-    for (i = 0; i < k; i++) {
-        if (!data[i][0]) {
+    for (i = 0; i < (k + m); i++) {
+        if (existing[i] == 0) {
             //printf("data %d needs 0s\n", i);
-            memset(data[i], '0', device_size_in_bytes);
-        }
-    }
-
-    for (i = 0; i < m; i++) {
-        if (!coding[i][0]) {
-            //printf("coding %d needs 0s\n", i);
-            for (j = 0; j < device_size_in_bytes; j++) {
-                coding[i][j] = 0;
+            //memset(data[i], '0', device_size_in_bytes);
+            //printf("%d ", i);
+            if (i < k) {
+                //printf(" is data filled with 0s \n");
+                data[i] = allocateAligned(device_size_in_bytes,alignmentTarget);
+                memset(data[i], '0', device_size_in_bytes);
+            } else {
+                //printf(" is coding filled with 0s \n");
+                printf("i = %d i-k = %d \n", i, (i-k));
+                coding[i - k] = allocateAligned(device_size_in_bytes,alignmentTarget);
+                printf("%p\n", coding[i-k]);
+                memset(coding[i - k], '0', device_size_in_bytes);
             }
         }
     }
@@ -272,6 +320,7 @@ static int decode (lua_State *L) {
 
     free(existing);
     free(erasures);
+    freeAlignedBuffers();
     free(data);
     free(coding);
 
