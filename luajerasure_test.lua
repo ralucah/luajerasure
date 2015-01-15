@@ -1,74 +1,63 @@
 luajerasure = require "luajerasure"
-print(luajerasure)
 
-function readAll(file)
-    local f = io.open(file, "rb")
-    local content = f:read("*all")
-    f:close()
-    return content
-end
-
-local content = readAll("127bytes")
--- in lua, it is safe to get length like this even if the file might contain \0
---print(#content)
-
+local file = "127bytes"
 local k = 7
 local m = 7
 local w = 8
-local res = {luajerasure.encode(k,m,w, #content, content)} 
 
---print(#tostring(k+m))
---print(res)
+function readFile(file)
+    local f = io.open(file, "rb")
+    local content = f:read("*all")
+    f:close()
+    return content, #content -- \0 is ignored
+end
 
-local data_device_size
-local res_incomplete = {}
-for key,val in pairs(res) do
-    if key % 2 ~= 0 then
-        res_incomplete[#res_incomplete + 1] = val
+function trimEncodedDevices(encoded, numToTrim)
+    local trimmed = {}
+    local dataDeviceSize
+    local indices = {}
+
+    while numToTrim > 0 do
+        local index
+        repeat
+            index = math.random(1, #encoded)
+        until indices[index] == nil
+
+        indices[index] = 1
+        numToTrim = numToTrim - 1
     end
-    data_device_size = (#val - 4) / (w/8)
-end
-print(data_device_size)
-
-resDec = luajerasure.decode(k, m, w, data_device_size, res_incomplete)
-
-for i=1,#content do
-    local c = content:sub(i,i)
-    io.write(string.byte(c).." ")
-end
-io.write("\n")
-for i=1,#resDec do
-    local c = resDec:sub(i,i)
-    if i > #content then
-        break
+    for index,_ in pairs(indices) do
+        trimmed[#trimmed + 1] = encoded[index]
     end
-    io.write(string.byte(c).." ")
+    dataDeviceSize = (#trimmed[1] - 4) / (w/8)
+
+    return trimmed, dataDeviceSize
 end
 
---[[num = 5
-t1 = {1, 2, 3}
-t2 = {4, 5, 6}
-t = {t1, t2}
-x = {1,2,3,4,5}]]--
---test(num, t)
-
---[[
-function pack(...) 
-      return { ... }, select("#", ...) 
-    end 
-
-function f()
-  return "a","b"
+function printContent(content)
+    for i=1,#content do
+        local c = content:sub(i,i)
+        io.write(string.byte(c).." ")
+    end
+    io.write("\n")
 end
 
-function g()
-  return 1,"c",{}
+function compareContent(content1, content2)
+    for i=1,#content1 do
+        local c1 = content1:sub(i,i)
+        local c2 = content2:sub(i,i)
+        if string.byte(c1) ~= string.byte(c2) then
+            print("different content!")
+            os.exit()
+        end
+    end
+    print("Decoded content matches original content")
 end
 
+local content, size = readFile(file)
+local encoded = {luajerasure.encode(k, m, w, size, content)}
 
-print( f() , select("#",f()) ) --f() returns 2 results
-print( g() , select("#",g()) ) --g() returns 3 results
+local trimmed, dataDeviceSize = trimEncodedDevices(encoded, m)
+local decoded = luajerasure.decode(k, m, w, dataDeviceSize, trimmed)
 
-t = pack(f())
-print(#t, t[1], t[2])
-]]--
+compareContent(content, decoded)
