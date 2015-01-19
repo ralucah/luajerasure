@@ -73,13 +73,14 @@ t1  = socket.gettime()*1000
 local encoded = {luajerasure.encode(k, m, w, size, content)}
 t2 = socket.gettime()*1000
 --print("encode: "..k.." "..m.." "..w.." "..file.." "..string.format("%.2f", (t2-t1)).."ms")
-print(string.format("%.2f", (t2-t1)))
+--print(string.format("%.2f", (t2-t1)))
 
 local trimmed, dataDeviceSize = trimEncodedDevices(encoded, k)
 
 t1  = socket.gettime()*1000
 local decoded = luajerasure.decode(k, m, w, dataDeviceSize, trimmed)
 t2 = socket.gettime()*1000
---print("decode: "..string.format("%.2f", (t2-t1)).."ms")
+--print("decode: "..k.." "..m.." "..w.." "..file.." "..string.format("%.2f", (t2-t1)).."ms")
+print(string.format("%.2f", (t2-t1)))
 
-compareContent(content, decoded)
+compareContent(content, decoded)s
