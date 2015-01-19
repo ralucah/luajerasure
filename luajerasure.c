@@ -1,5 +1,7 @@
 /**
-* Lua binding for the Jerasure library
+* Lua binding for Jerasure's Vandermonde Reed-Solomon.
+* w must be 8,16,32
+* k + m must be <= 2^w
 */
 
 #define LUA_LIB
@@ -72,7 +74,7 @@ static int encode (lua_State *L) {
     int size = luaL_checknumber(L, 4);
     char* content = luaL_checkstring(L, 5);
     check_args(k, m, w);
-    printf("encode(k = %d, m = %d, w = %d, bytes-of-data = %d)\n\n", k, m, w, size);
+    //printf("encode(k = %d, m = %d, w = %d, bytes-of-data = %d)\n\n", k, m, w, size);
 
     int i, j, l;
     int *matrix;
@@ -114,13 +116,13 @@ static int encode (lua_State *L) {
         }
     }
 
-    printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
+    //printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
 
     matrix = reed_sol_vandermonde_coding_matrix(k, m, w);
 
     jerasure_matrix_encode(k, m, w, matrix, data, coding, deviceSizeInBytes);
-    printf("\nEncoding Complete:\n\n");
-    printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
+    //printf("\nEncoding Complete:\n\n");
+    //printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
 
     /* precede data and coding devices by their index (on sizeof(int) bytes) */
     for ( i = 0; i < k; i++ ) {
@@ -154,7 +156,7 @@ static int decode (lua_State *L) {
     int w = luaL_checknumber(L, 3);
     int deviceSize = luaL_checknumber(L, 4);
     check_args(k, m, w);
-    printf("decode( k = %d, m = %d, w = %d, deviceSize = %d)\n\n", k, m, w, deviceSize);
+    //printf("decode( k = %d, m = %d, w = %d, deviceSize = %d)\n\n", k, m, w, deviceSize);
 
     /* pop k, m, w, deviceSize from stack */
     lua_remove(L,1);
@@ -233,13 +235,13 @@ static int decode (lua_State *L) {
     erasures[numErasures] = -1;
     numErasures++;
 
-    printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
+    //printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
 
     matrix = reed_sol_vandermonde_coding_matrix(k, m, w);
     i = jerasure_matrix_decode(k, m, w, matrix, 1, erasures, data, coding, deviceSizeInBytes);
 
-    printf("State of the system after decoding:\n\n");
-    printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
+    //printf("State of the system after decoding:\n\n");
+    //printDataAndCoding(k, m, w, deviceSizeInBytes, data, coding);
 
     /* push decoded data devices on the stack */
     char *content = (char*) malloc(sizeof(char) * deviceSizeInBytes * k);
