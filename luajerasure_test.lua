@@ -41,7 +41,7 @@ function trimEncodedDevices(encoded, numToKeep)
     for index,_ in pairs(indices) do
         trimmed[#trimmed + 1] = encoded[index]
     end
-    dataDeviceSize = (#trimmed[1] - 4) / (w/8)
+    --dataDeviceSize = (#trimmed[1] - 4) / (w/8) -- done in C now
 
     return trimmed, dataDeviceSize
 end

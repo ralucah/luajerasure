@@ -155,6 +155,8 @@ static int decode (lua_State *L) {
     int m = luaL_checknumber(L, 2);
     int w = luaL_checknumber(L, 3);
     int deviceSize = luaL_checknumber(L, 4);
+    /* adjust device size, as 4 bytes were used for data device id */
+    deviceSize = (deviceSize - 4) / (w/8);
     check_args(k, m, w);
     //printf("decode( k = %d, m = %d, w = %d, deviceSize = %d)\n\n", k, m, w, deviceSize);
 
