@@ -24,6 +24,43 @@ function readFile(file)
     return content, #content -- \0 is ignored
 end
 
+function corruptEncodedDevices(encoded, numToCorrupt)
+    local corrupted = {}
+    local indices = {}
+
+    while numToCorrupt > 0 do
+        local index
+        repeat
+            index = math.random(1, #encoded)
+        until indices[index] == nil
+
+        indices[index] = 1
+        numToCorrupt = numToCorrupt - 1
+    end
+
+    local deviceSize = #encoded[1]
+    print("deviceSize: "..deviceSize)
+    for index,_ in pairs(indices) do
+        -- generate random string
+        local garbage_str = string.rep(string.char(math.random(32, 126)), deviceSize)
+        --print(garbage_str)
+
+        --print(#encoded[index].." "..#garbage_str)
+        corrupted[index] = garbage_str
+    end
+
+    for i=1,#encoded do
+        if not corrupted[i] then
+            corrupted[i] = encoded[i]
+        end
+        --print(corrupted[i])
+        --print(encoded[i])
+        --print("\n")
+    end
+
+    return corrupted
+end
+
 function trimEncodedDevices(encoded, numToKeep)
     local trimmed = {}
     local dataDeviceSize
@@ -43,7 +80,7 @@ function trimEncodedDevices(encoded, numToKeep)
     end
     --dataDeviceSize = (#trimmed[1] - 4) / (w/8) -- done in C now
 
-    return trimmed, dataDeviceSize
+    return trimmed
 end
 
 function printContent(content)
@@ -75,7 +112,9 @@ t2 = socket.gettime()*1000
 --print("encode: "..k.." "..m.." "..w.." "..file.." "..string.format("%.2f", (t2-t1)).."ms")
 --print(string.format("%.2f", (t2-t1)))
 
-local trimmed, dataDeviceSize = trimEncodedDevices(encoded, k)
+local dataDeviceSize = #encoded[1]
+
+local trimmed = trimEncodedDevices(encoded, k)
 
 t1  = socket.gettime()*1000
 local decoded = luajerasure.decode(k, m, w, dataDeviceSize, trimmed)
@@ -83,4 +122,8 @@ t2 = socket.gettime()*1000
 --print("decode: "..k.." "..m.." "..w.." "..file.." "..string.format("%.2f", (t2-t1)).."ms")
 print(string.format("%.2f", (t2-t1)))
 
-compareContent(content, decoded)s
+compareContent(content, decoded)
+
+--local corrupted = corruptEncodedDevices(encoded, 2)
+--local decoded = luajerasure.decode(k, m, w, dataDeviceSize, corrupted)
+--print(decoded)
